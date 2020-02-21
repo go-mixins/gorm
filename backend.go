@@ -2,10 +2,18 @@ package gorm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jinzhu/gorm"
-	"golang.org/x/xerrors"
 	gormigrate "gopkg.in/gormigrate.v1"
+)
+
+type logLevel int
+
+// Log levels (defaults to Debug)
+const (
+	LogDebug logLevel = iota
+	LogInfo
 )
 
 // Backend implements generic database backend
@@ -14,6 +22,7 @@ type Backend struct {
 	Driver     string
 	DBURI      string
 	Debug      bool
+	LogLevel   logLevel
 	Migrate    bool
 	InitSchema func(*gorm.DB) error
 
@@ -29,7 +38,7 @@ func (b *Backend) WithContext(ctx context.Context) *Backend {
 		Debug:   b.Debug,
 		context: ctx,
 	}
-	res.DB.SetLogger(newLogger(res.context))
+	res.DB.SetLogger(newLogger(res.context, res.LogLevel))
 	return res
 }
 
@@ -63,9 +72,9 @@ func (b *Backend) dbURI() string {
 func (b *Backend) Connect(migrations ...*gormigrate.Migration) error {
 	db, err := gorm.Open(b.driver(), b.dbURI())
 	if err != nil {
-		return xerrors.Errorf("create database connection: %w", err)
+		return fmt.Errorf("create database connection: %w", err)
 	}
-	db.SetLogger(newLogger(b.context))
+	db.SetLogger(newLogger(b.context, b.LogLevel))
 	if b.Debug {
 		db.LogMode(true)
 	}
@@ -80,7 +89,7 @@ func (b *Backend) Connect(migrations ...*gormigrate.Migration) error {
 		m.InitSchema(b.InitSchema)
 	}
 	if err := m.Migrate(); err != nil {
-		return xerrors.Errorf("apply migrations: %w", err)
+		return fmt.Errorf("apply migrations: %w", err)
 	}
 	return nil
 }
@@ -88,7 +97,7 @@ func (b *Backend) Connect(migrations ...*gormigrate.Migration) error {
 // Close DB connection
 func (b *Backend) Close() error {
 	if err := b.DB.Close(); err != nil {
-		return xerrors.Errorf("closing database connection: %w", err)
+		return fmt.Errorf("closing database connection: %w", err)
 	}
 	return nil
 }
