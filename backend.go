@@ -42,6 +42,15 @@ func (b *Backend) WithContext(ctx context.Context) *Backend {
 	return res
 }
 
+// WithLogger injects log printer func into Backend
+func (b *Backend) WithLogger(printer func(...interface{})) *Backend {
+	res := new(Backend)
+	*res = *b
+	res.DB = b.DB.New()
+	res.DB.SetLogger(logger{printer: printer})
+	return res
+}
+
 // Context returns context associated with Backend
 func (b *Backend) Context() context.Context {
 	return b.context
