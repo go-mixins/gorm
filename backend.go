@@ -31,13 +31,10 @@ type Backend struct {
 
 // WithContext creates Backend clone with new context and logger
 func (b *Backend) WithContext(ctx context.Context) *Backend {
-	res := &Backend{
-		DB:      b.DB.New(),
-		Driver:  b.Driver,
-		DBURI:   b.DBURI,
-		Debug:   b.Debug,
-		context: ctx,
-	}
+	res := new(Backend)
+	*res = *b
+	res.DB = b.DB.New()
+	res.context = ctx
 	res.DB.SetLogger(newLogger(res.context, res.LogLevel))
 	return res
 }

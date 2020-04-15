@@ -7,11 +7,9 @@ import (
 )
 
 func (b *Backend) Begin() *Backend {
-	res := &Backend{
-		DB:      b.DB.Begin(),
-		context: b.context,
-	}
-	res.DB.SetLogger(newLogger(res.context, res.LogLevel))
+	res := new(Backend)
+	*res = *b
+	res.DB = b.DB.Begin()
 	return res
 }
 
