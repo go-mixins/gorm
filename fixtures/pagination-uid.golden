@@ -8,7 +8,7 @@
 	"page_size": 3,
 	"next_page_token": "{\"f\":\"04\"}",
 	"this_page_token": "{\"f\":\"01\"}",
-	"prev_page_token": ""
+	"prev_page_token": "-{\"f\":\"02\"}"
 }
 [
 	{
@@ -37,7 +37,7 @@
 	"page_size": 3,
 	"next_page_token": "{\"f\":\"07\"}",
 	"this_page_token": "{\"f\":\"04\"}",
-	"prev_page_token": ""
+	"prev_page_token": "-{\"f\":\"05\"}"
 }
 [
 	{
@@ -64,7 +64,7 @@
 }
 {
 	"page_size": 3,
-	"next_page_token": "",
+	"next_page_token": "{\"f\":\"03\"}",
 	"this_page_token": "-{\"f\":\"04\"}",
 	"prev_page_token": ""
 }
@@ -93,7 +93,7 @@
 }
 {
 	"page_size": 4,
-	"next_page_token": "",
+	"next_page_token": "{\"f\":\"06\"}",
 	"this_page_token": "-{\"f\":\"07\"}",
 	"prev_page_token": "-{\"f\":\"03\"}"
 }
@@ -176,7 +176,7 @@ null
 	"page_size": 1,
 	"next_page_token": "",
 	"this_page_token": "{\"f\":\"07\"}",
-	"prev_page_token": ""
+	"prev_page_token": "-{\"f\":\"08\"}"
 }
 [
 	{

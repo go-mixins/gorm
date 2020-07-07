@@ -79,15 +79,26 @@ func (p *Paginator) Paginate(src interface{}, pgn *Pagination) (interface{}, *Pa
 	reverse := p.isReverse(pgn)
 	n := value.Len()
 	dest := value
-	if n != 0 {
-		if pgn.PageSize != 0 && n > pgn.PageSize {
+	if n != 0 && pgn.PageSize != 0 {
+		if n > pgn.PageSize {
 			res.PageSize = n - 1
 			if !reverse {
 				res.NextPageToken = p.cursor(value, n-2)
+				if res.ThisPageToken != "" {
+					res.PrevPageToken = "-" + p.cursor(value, 0)
+				}
 			} else {
 				res.PrevPageToken = "-" + p.cursor(value, n-2)
+				res.NextPageToken = p.cursor(value, 0)
 			}
 			dest = value.Slice(0, n-1)
+		}
+		if !reverse {
+			if res.ThisPageToken != "" {
+				res.PrevPageToken = "-" + p.cursor(value, 0)
+			}
+		} else {
+			res.NextPageToken = p.cursor(value, 0)
 		}
 	}
 	n = dest.Len()
