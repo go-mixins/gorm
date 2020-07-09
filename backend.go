@@ -3,6 +3,7 @@ package gorm
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	gormigrate "gopkg.in/gormigrate.v1"
@@ -18,13 +19,16 @@ const (
 
 // Backend implements generic database backend
 type Backend struct {
-	DB         *gorm.DB
-	Driver     string
-	DBURI      string
-	Debug      bool
-	LogLevel   logLevel
-	Migrate    bool
-	InitSchema func(*gorm.DB) error
+	DB              *gorm.DB
+	Driver          string
+	DBURI           string
+	Debug           bool
+	LogLevel        logLevel
+	Migrate         bool
+	MaxIdleConns    int
+	MaxOpenConns    int
+	ConnMaxLifetime time.Duration
+	InitSchema      func(*gorm.DB) error
 
 	context context.Context
 }
@@ -79,6 +83,15 @@ func (b *Backend) Connect(migrations ...*gormigrate.Migration) error {
 	db, err := gorm.Open(b.driver(), b.dbURI())
 	if err != nil {
 		return fmt.Errorf("create database connection: %w", err)
+	}
+	if b.MaxOpenConns != 0 {
+		db.DB().SetMaxOpenConns(b.MaxOpenConns)
+	}
+	if b.MaxIdleConns != 0 {
+		db.DB().SetMaxIdleConns(b.MaxIdleConns)
+	}
+	if b.ConnMaxLifetime != 0 {
+		db.DB().SetConnMaxLifetime(b.ConnMaxLifetime)
 	}
 	db.SetLogger(newLogger(b.context, b.LogLevel))
 	if b.Debug {
