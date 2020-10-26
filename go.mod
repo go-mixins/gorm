@@ -1,4 +1,4 @@
-module github.com/go-mixins/gorm
+module github.com/go-mixins/gorm/v2
 
 go 1.14
 
