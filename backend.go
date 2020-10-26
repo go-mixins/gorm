@@ -5,104 +5,95 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	gormigrate "gopkg.in/gormigrate.v1"
-)
-
-type logLevel int
-
-// Log levels (defaults to Debug)
-const (
-	LogDebug logLevel = iota
-	LogInfo
+	gormigrate "github.com/go-gormigrate/gormigrate/v2"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // Backend implements generic database backend
 type Backend struct {
 	DB              *gorm.DB
-	Driver          string
-	DBURI           string
+	Driver          gorm.Dialector
+	Config          *gorm.Config
 	Debug           bool
-	LogLevel        logLevel
+	UseLogMixin     bool
 	Migrate         bool
 	MaxIdleConns    int
 	MaxOpenConns    int
 	ConnMaxLifetime time.Duration
 	InitSchema      func(*gorm.DB) error
+}
 
-	context context.Context
+func (b *Backend) config() *gorm.Config {
+	if b.Config != nil {
+		return b.Config
+	}
+	config := &gorm.Config{}
+	if b.UseLogMixin {
+		config.Logger = ctxLogger(logger.Warn)
+	}
+	return config
 }
 
 // WithContext creates Backend clone with new context and logger
 func (b *Backend) WithContext(ctx context.Context) *Backend {
 	res := new(Backend)
 	*res = *b
-	res.DB = b.DB.New()
-	res.context = ctx
-	res.DB.SetLogger(newLogger(res.context, res.LogLevel))
+	res.DB = b.DB.WithContext(ctx)
 	return res
 }
 
 // WithLogger injects log printer func into Backend
-func (b *Backend) WithLogger(printer func(...interface{})) *Backend {
+func (b *Backend) WithLogger(printer Printer) *Backend {
 	res := new(Backend)
 	*res = *b
-	res.DB = b.DB.New()
-	res.DB.SetLogger(logger{printer: printer})
+	var cfg logger.Config
+	if b.Debug {
+		cfg.LogLevel = logger.Info
+	}
+	res.DB = b.DB.Session(&gorm.Session{
+		Logger: logger.New(printer, cfg),
+	})
 	return res
 }
 
 // Context returns context associated with Backend
 func (b *Backend) Context() context.Context {
-	return b.context
-}
-
-func (b *Backend) driver() string {
-	if b.Driver != "" {
-		return b.Driver
+	if b.DB.Statement == nil {
+		return nil
 	}
-	return "sqlite3"
-}
-
-func (b *Backend) dbURI() string {
-	driver := b.driver()
-	if b.DBURI == "" {
-		return "test"
-	}
-	if driver == "postgres" {
-		return b.DBURI + " binary_parameters=yes"
-	} else if driver == "mysql" {
-		return b.DBURI + "?charset=utf8&parseTime=True&loc=Local"
-	}
-	return b.DBURI
+	return b.DB.Statement.Context
 }
 
 // Connect sets up the backend and applies migrations if Migrate flag is set to
 // true. InitSchema func if set, is used to create initial schema.
 func (b *Backend) Connect(migrations ...*gormigrate.Migration) error {
-	db, err := gorm.Open(b.driver(), b.dbURI())
+	db, err := gorm.Open(b.Driver, b.config())
 	if err != nil {
 		return fmt.Errorf("create database connection: %w", err)
 	}
+	if b.Debug {
+		db = db.Debug()
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to acquire DB object: %w", err)
+	}
 	if b.MaxOpenConns != 0 {
-		db.DB().SetMaxOpenConns(b.MaxOpenConns)
+		sqlDB.SetMaxOpenConns(b.MaxOpenConns)
 	}
 	if b.MaxIdleConns != 0 {
-		db.DB().SetMaxIdleConns(b.MaxIdleConns)
+		sqlDB.SetMaxIdleConns(b.MaxIdleConns)
 	}
 	if b.ConnMaxLifetime != 0 {
-		db.DB().SetConnMaxLifetime(b.ConnMaxLifetime)
-	}
-	db.SetLogger(newLogger(b.context, b.LogLevel))
-	if b.Debug {
-		db.LogMode(true)
+		sqlDB.SetConnMaxLifetime(b.ConnMaxLifetime)
 	}
 	b.DB = db
 	if !b.Migrate {
 		return nil
 	}
 	m := gormigrate.New(db, &gormigrate.Options{
-		UseTransaction: b.Driver == "postgres",
+		UseTransaction: b.Driver.Name() == "postgres",
 	}, migrations)
 	if b.InitSchema != nil {
 		m.InitSchema(b.InitSchema)
@@ -115,8 +106,5 @@ func (b *Backend) Connect(migrations ...*gormigrate.Migration) error {
 
 // Close DB connection
 func (b *Backend) Close() error {
-	if err := b.DB.Close(); err != nil {
-		return fmt.Errorf("closing database connection: %w", err)
-	}
 	return nil
 }

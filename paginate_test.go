@@ -2,6 +2,7 @@ package gorm_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"io/ioutil"
@@ -10,10 +11,11 @@ import (
 	"time"
 
 	"github.com/andviro/goldie"
+	gormigrate "github.com/go-gormigrate/gormigrate/v2"
+	"github.com/go-mixins/log"
 	"github.com/go-mixins/log/logrus"
-	g "github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite" // SQLite
-	gormigrate "gopkg.in/gormigrate.v1"
+	"gorm.io/driver/sqlite"
+	g "gorm.io/gorm"
 
 	"github.com/go-mixins/gorm"
 )
@@ -31,21 +33,25 @@ var logger = logrus.New()
 func TestMain(m *testing.M) {
 	flag.Parse()
 	b := &gorm.Backend{
-		DBURI:   ":memory:",
-		Migrate: true,
+		Driver:      sqlite.Open(":memory:"),
+		Migrate:     true,
+		UseLogMixin: true,
 	}
 	b.Debug = testing.Verbose()
+	if b.Debug {
+		logger.SetLevel(logrus.DebugLevel)
+	}
 	if err := b.Connect(
 		&gormigrate.Migration{
 			ID: "initial",
 			Migrate: func(tx *g.DB) error {
-				return tx.AutoMigrate(&testItem{}).Error
+				return tx.AutoMigrate(&testItem{})
 			},
 		},
 	); err != nil {
 		panic(err)
 	}
-	backend = b
+	backend = b.WithContext(log.With(context.Background(), logger))
 	data, err := ioutil.ReadFile("testdata/fixtures.json")
 	if err != nil {
 		panic(err)

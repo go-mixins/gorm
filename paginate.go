@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 // Paginator provides cursor-based paginator
@@ -37,7 +37,7 @@ func (p *Pagination) GetPageSize() int {
 
 type scope struct {
 	rev, neg, hasOffset bool
-	field, tie          string
+	dbField, dbTie      string
 	cursor              map[string]interface{}
 }
 
@@ -125,30 +125,30 @@ func (p *Paginator) isReverse(pgn *Pagination) bool {
 
 func (p *scope) order(db *gorm.DB) *gorm.DB {
 	if p.rev {
-		db = db.Order(p.field + " DESC")
-		if p.tie != "" {
-			db = db.Order(p.tie + " DESC")
+		db = db.Order(p.field(db) + " DESC")
+		if p.tie(db) != "" {
+			db = db.Order(p.tie(db) + " DESC")
 		}
 		return db
 	}
-	db = db.Order(p.field + " ASC")
-	if p.tie != "" {
-		db = db.Order(p.tie + " ASC")
+	db = db.Order(p.field(db) + " ASC")
+	if p.tie(db) != "" {
+		db = db.Order(p.tie(db) + " ASC")
 	}
 	return db
 }
 
 func (p *scope) reverse(db *gorm.DB) *gorm.DB {
 	if p.rev {
-		db = db.Order(p.field + " ASC")
-		if p.tie != "" {
-			db = db.Order(p.tie + " ASC")
+		db = db.Order(p.field(db) + " ASC")
+		if p.tie(db) != "" {
+			db = db.Order(p.tie(db) + " ASC")
 		}
 		return db
 	}
-	db = db.Order(p.field + " DESC")
-	if p.tie != "" {
-		db = db.Order(p.tie + " DESC")
+	db = db.Order(p.field(db) + " DESC")
+	if p.tie(db) != "" {
+		db = db.Order(p.tie(db) + " DESC")
 	}
 	return db
 }
@@ -157,39 +157,47 @@ func (p *scope) reverse(db *gorm.DB) *gorm.DB {
 
 func (p *scope) forward(db *gorm.DB) *gorm.DB {
 	if p.rev {
-		db = db.Where(p.field+" < ?", p.cursor["f"])
+		db = db.Where(p.field(db)+" < ?", p.cursor["f"])
 		if p.cursor["t"] != nil {
-			db = db.Or(p.field+" = ? AND "+p.tie+" < ?", p.cursor["f"], p.cursor["t"])
+			db = db.Or(p.field(db)+" = ? AND "+p.tie(db)+" < ?", p.cursor["f"], p.cursor["t"])
 		}
 		return db
 	}
-	db = db.Where(p.field+" > ?", p.cursor["f"])
+	db = db.Where(p.field(db)+" > ?", p.cursor["f"])
 	if p.cursor["t"] != nil {
-		db = db.Or(p.field+" = ? AND "+p.tie+" > ?", p.cursor["f"], p.cursor["t"])
+		db = db.Or(p.field(db)+" = ? AND "+p.tie(db)+" > ?", p.cursor["f"], p.cursor["t"])
 	}
 	return db
 }
 
 func (p *scope) backward(db *gorm.DB) *gorm.DB {
 	if p.rev {
-		db = db.Where(p.field+" > ?", p.cursor["f"])
+		db = db.Where(p.field(db)+" > ?", p.cursor["f"])
 		if p.cursor["t"] != nil {
-			db = db.Or(p.field+" = ? AND "+p.tie+" > ?", p.cursor["f"], p.cursor["t"])
+			db = db.Or(p.field(db)+" = ? AND "+p.tie(db)+" > ?", p.cursor["f"], p.cursor["t"])
 		}
 		return db
 	}
-	db = db.Where(p.field+" < ?", p.cursor["f"])
+	db = db.Where(p.field(db)+" < ?", p.cursor["f"])
 	if p.cursor["t"] != nil {
-		db = db.Or(p.field+" = ? AND "+p.tie+" < ?", p.cursor["f"], p.cursor["t"])
+		db = db.Or(p.field(db)+" = ? AND "+p.tie(db)+" < ?", p.cursor["f"], p.cursor["t"])
 	}
 	return db
 }
 
+func (s *scope) field(db *gorm.DB) string {
+	return db.Config.NamingStrategy.ColumnName("", s.dbField)
+}
+
+func (s *scope) tie(db *gorm.DB) string {
+	return db.Config.NamingStrategy.ColumnName("", s.dbTie)
+}
+
 func (p *Paginator) scope(pgn *Pagination) *scope {
 	res := &scope{
-		rev:   p.Reverse,
-		field: gorm.ToDBName(p.FieldName),
-		tie:   gorm.ToDBName(p.TieBreakField),
+		rev:     p.Reverse,
+		dbField: p.FieldName,
+		dbTie:   p.TieBreakField,
 	}
 	if pgn == nil {
 		return res
