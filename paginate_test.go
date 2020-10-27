@@ -17,7 +17,7 @@ import (
 	"gorm.io/driver/sqlite"
 	g "gorm.io/gorm"
 
-	"github.com/go-mixins/gorm"
+	"github.com/go-mixins/gorm/v2"
 )
 
 type testItem struct {
