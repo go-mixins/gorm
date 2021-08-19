@@ -2,7 +2,7 @@ package gorm
 
 import (
 	"context"
-	"regexp"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -12,18 +12,12 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var mixinSourceDir string
-
-func init() {
-	_, file, _, _ := runtime.Caller(0)
-	mixinSourceDir = regexp.MustCompile(`gorm.log\.go`).ReplaceAllString(file, "")
-}
-
 func fileWithLineNum() string {
-	for i := 2; i < 15; i++ {
+	_, file, _, _ := runtime.Caller(2) // XXX fragile!
+	dirname, _ := filepath.Split(file)
+	for i := 3; i < 15; i++ {
 		_, file, line, ok := runtime.Caller(i)
-
-		if ok && (!strings.HasPrefix(file, mixinSourceDir) || strings.HasSuffix(file, "_test.go")) {
+		if ok && (!strings.HasPrefix(file, dirname) || strings.HasSuffix(file, "_test.go")) {
 			return file + ":" + strconv.FormatInt(int64(line), 10)
 		}
 	}
