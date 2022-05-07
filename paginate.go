@@ -3,15 +3,16 @@ package gorm
 import (
 	"encoding/base64"
 	"encoding/json"
-	"reflect"
 	"strings"
 	"time"
+
+	"github.com/oleiade/reflections"
 
 	"gorm.io/gorm"
 )
 
 // Paginator provides cursor-based paginator
-type Paginator struct {
+type Paginator[A any] struct {
 	FieldName     string
 	TieBreakField string
 	Reverse       bool
@@ -41,16 +42,14 @@ type scope struct {
 	cursor              map[string]interface{}
 }
 
-func (p *Paginator) cursor(val reflect.Value, idx int) string {
-	elt := val.Index(idx)
-	if elt.Kind() == reflect.Ptr {
-		elt = elt.Elem()
-	}
+func (p *Paginator[A]) cursor(elt A) string {
+	f, _ := reflections.GetField(elt, p.FieldName)
 	res := map[string]interface{}{
-		"f": elt.FieldByName(p.FieldName).Interface(),
+		"f": f,
 	}
 	if p.TieBreakField != "" {
-		res["t"] = elt.FieldByName(p.TieBreakField).Interface()
+		t, _ := reflections.GetField(elt, p.TieBreakField)
+		res["t"] = t
 	}
 	jd, _ := json.Marshal(res)
 	if p.Debug {
@@ -60,63 +59,50 @@ func (p *Paginator) cursor(val reflect.Value, idx int) string {
 }
 
 // Paginate query result according to parameter
-func (p *Paginator) Paginate(src interface{}, pgn *Pagination) (interface{}, *Pagination) {
-	if src == nil || pgn == nil {
-		return src, nil
-	}
-	value := reflect.ValueOf(src)
-	kind := value.Kind()
-	if kind == reflect.Ptr {
-		value = value.Elem()
-		kind = value.Kind()
-	}
-	if (kind != reflect.Array && kind != reflect.Slice) || value.Len() == 0 {
+func (p *Paginator[A]) Paginate(src []A, pgn *Pagination) ([]A, *Pagination) {
+	if len(src) == 0 || pgn == nil {
 		return src, nil
 	}
 	res := &Pagination{
 		ThisPageToken: pgn.ThisPageToken,
 	}
-	reverse := p.isReverse(pgn)
-	n := value.Len()
-	dest := value
+	reverse := pgn.isReverse()
+	n := len(src)
+	dest := src
 	if n != 0 && pgn.PageSize != 0 {
 		if n > pgn.PageSize {
 			res.PageSize = n - 1
 			if !reverse {
-				res.NextPageToken = p.cursor(value, n-2)
+				res.NextPageToken = p.cursor(src[n-2])
 				if res.ThisPageToken != "" {
-					res.PrevPageToken = "-" + p.cursor(value, 0)
+					res.PrevPageToken = "-" + p.cursor(src[0])
 				}
 			} else {
-				res.PrevPageToken = "-" + p.cursor(value, n-2)
-				res.NextPageToken = p.cursor(value, 0)
+				res.PrevPageToken = "-" + p.cursor(src[n-2])
+				res.NextPageToken = p.cursor(src[0])
 			}
-			dest = value.Slice(0, n-1)
+			dest = src[0 : n-1]
 		}
 		if !reverse {
 			if res.ThisPageToken != "" {
-				res.PrevPageToken = "-" + p.cursor(value, 0)
+				res.PrevPageToken = "-" + p.cursor(src[0])
 			}
 		} else {
-			res.NextPageToken = p.cursor(value, 0)
+			res.NextPageToken = p.cursor(src[0])
 		}
 	}
-	n = dest.Len()
+	n = len(dest)
 	res.PageSize = n
 	if reverse {
-		valueType := value.Type()
 		for i := n/2 - 1; i >= 0; i-- {
 			opp := n - 1 - i
-			val := reflect.New(valueType.Elem()).Elem()
-			val.Set(dest.Index(opp))
-			dest.Index(opp).Set(dest.Index(i))
-			dest.Index(i).Set(val)
+			dest[opp], dest[i] = dest[i], dest[opp]
 		}
 	}
-	return dest.Interface(), res
+	return dest, res
 }
 
-func (p *Paginator) isReverse(pgn *Pagination) bool {
+func (pgn *Pagination) isReverse() bool {
 	if pgn.ThisPageToken == "" {
 		return false
 	}
@@ -193,7 +179,7 @@ func (s *scope) tie(db *gorm.DB) string {
 	return db.Config.NamingStrategy.ColumnName("", s.dbTie)
 }
 
-func (p *Paginator) scope(pgn *Pagination) *scope {
+func (p *Paginator[A]) scope(pgn *Pagination) *scope {
 	res := &scope{
 		rev:     p.Reverse,
 		dbField: p.FieldName,
@@ -219,7 +205,7 @@ func (p *Paginator) scope(pgn *Pagination) *scope {
 }
 
 // Scope provides proper offset and ordering for cursor db
-func (p *Paginator) Scope(pgn *Pagination) func(*gorm.DB) *gorm.DB {
+func (p *Paginator[A]) Scope(pgn *Pagination) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		s := p.scope(pgn)
 		if n := pgn.GetPageSize(); n != 0 {

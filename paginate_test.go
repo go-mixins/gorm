@@ -78,7 +78,7 @@ func TestPaginateUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	enc.SetIndent("", "\t")
-	p := &gorm.Paginator{FieldName: "UID", Debug: true}
+	p := &gorm.Paginator[testItem]{FieldName: "UID", Debug: true}
 	for _, tc := range reqs {
 		var res []testItem
 		backend.DB.Scopes(p.Scope(tc)).Find(&res)
@@ -103,7 +103,7 @@ func TestPaginateTime(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 	enc.SetIndent("", "\t")
-	p := &gorm.Paginator{FieldName: "AccessTime", TieBreakField: "UID", Debug: true, IsTime: true}
+	p := &gorm.Paginator[testItem]{FieldName: "AccessTime", TieBreakField: "UID", Debug: true, IsTime: true}
 	for _, tc := range reqs {
 		var res []testItem
 		if err := backend.DB.Scopes(p.Scope(tc)).Find(&res).Error; err != nil {
