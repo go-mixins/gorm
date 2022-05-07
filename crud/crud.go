@@ -8,10 +8,6 @@ import (
 	g "gorm.io/gorm"
 )
 
-type Versioned struct {
-	Version int
-}
-
 type Basic[M any] gorm.Backend
 
 func (b Basic[A]) Create(src *A, opts ...func(*g.DB) *g.DB) error {
