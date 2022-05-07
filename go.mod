@@ -7,6 +7,7 @@ require (
 	github.com/go-gormigrate/gormigrate/v2 v2.0.0
 	github.com/go-mixins/log v0.2.4
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/oleiade/reflections v1.0.1
 	gorm.io/driver/sqlite v1.3.2
 	gorm.io/gorm v1.23.5
 )
