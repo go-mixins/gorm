@@ -3,8 +3,10 @@ package crud
 import (
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/go-mixins/gorm/v3"
+	"github.com/oleiade/reflections"
 	g "gorm.io/gorm"
 )
 
@@ -59,4 +61,54 @@ func (b Basic[A]) Delete(conds ...interface{}) error {
 		return fmt.Errorf("deleting %T: %+v", dest, err)
 	}
 	return nil
+}
+
+var splitRe = regexp.MustCompile(`\s*[;,]\s*`)
+
+func (b Basic[A]) Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]A, *gorm.Pagination, error) {
+	var (
+		res []A
+		elt A
+	)
+	p := &gorm.Paginator[A]{Debug: b.Debug, IsTime: true}
+	fields, err := reflections.FieldsDeep(&elt)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, f := range fields {
+		t, err := reflections.GetFieldTag(&elt, f, `paginate`)
+		if err != nil {
+			return nil, nil, err
+		}
+		if t == "" {
+			continue
+		}
+		options := splitRe.Split(t, -1)
+		switch options[0] {
+		case "key":
+			p.FieldName = f
+			for _, o := range options {
+				switch o {
+				case "reverse":
+					p.Reverse = true
+				case "isTime":
+					p.IsTime = true
+				}
+			}
+		case "tieBreak":
+			p.TieBreakField = f
+		}
+	}
+	if p.FieldName == "" {
+		return nil, nil, fmt.Errorf("key field for %T must be tagged", elt)
+	}
+	q := b.DB.Scopes(p.Scope(&pgn))
+	for _, o := range opts {
+		q = o(q)
+	}
+	if err := q.Find(&res).Error; err != nil {
+		return nil, nil, err
+	}
+	results, resPgn := p.Paginate(res, &pgn)
+	return results, resPgn, nil
 }

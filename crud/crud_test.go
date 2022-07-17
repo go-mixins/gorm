@@ -20,13 +20,15 @@ import (
 )
 
 type testItem struct {
-	UID        string `gorm:"primary_key"`
+	UID        string `gorm:"primary_key" paginate:"tieBreak"`
 	Value      string
-	AccessTime time.Time `gorm:"index"`
+	AccessTime time.Time `gorm:"index" paginate:"key;isTime;reverse"`
 }
 
-var backend *gorm.Backend
-var api *crud.Basic[testItem]
+var (
+	backend *gorm.Backend
+	api     *crud.Basic[testItem]
+)
 
 var logger = logrus.New()
 
@@ -83,7 +85,13 @@ func TestCrud_Create_Update(t *testing.T) {
 		}
 		t.Logf("%+v", itm)
 	}
-	for i, ti := range tis {
+	res, _, err := api.Find(gorm.Pagination{})
+	if err != nil {
+		t.Errorf("paginate: %+v", err)
+	} else if len(res) != len(tis) {
+		t.Errorf("must have length %d", len(tis))
+	}
+	for i, ti := range res {
 		if err := api.Delete(`uid = ?`, ti.UID); err != nil {
 			t.Errorf("delete %d: %+v", i, err)
 		}
