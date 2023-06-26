@@ -172,11 +172,11 @@ func (p *scope) backward(db *gorm.DB) *gorm.DB {
 }
 
 func (s *scope) field(db *gorm.DB) string {
-	return db.Config.NamingStrategy.ColumnName("", s.dbField)
+	return db.NamingStrategy.ColumnName("", s.dbField)
 }
 
 func (s *scope) tie(db *gorm.DB) string {
-	return db.Config.NamingStrategy.ColumnName("", s.dbTie)
+	return db.NamingStrategy.ColumnName("", s.dbTie)
 }
 
 func (p *Paginator[A]) scope(pgn *Pagination) *scope {

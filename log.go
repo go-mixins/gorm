@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-mixins/log"
+	"github.com/jellevandenhooff/slogctx"
 	"gorm.io/gorm/logger"
 )
 
@@ -33,57 +33,46 @@ func (p Printer) Printf(format string, vals ...interface{}) {
 	p(format, vals...)
 }
 
-type ctxLogger logger.LogLevel
+type slogLogger logger.LogLevel
 
-func (ctxLogger) LogMode(l logger.LogLevel) logger.Interface {
-	return ctxLogger(l)
+func (slogLogger) LogMode(l logger.LogLevel) logger.Interface {
+	return slogLogger(l)
 }
 
-func (l ctxLogger) Info(ctx context.Context, f string, v ...interface{}) {
+func (l slogLogger) Info(ctx context.Context, f string, v ...interface{}) {
 	if logger.LogLevel(l) < logger.Info {
 		return
 	}
-	log.Get(ctx).WithContext(log.M{
-		"caller": fileWithLineNum(),
-	}).
-		Infof(f, v...)
+	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum())
+	slogctx.Info(ctx, f, v...)
 }
 
-func (l ctxLogger) Warn(ctx context.Context, f string, v ...interface{}) {
+func (l slogLogger) Warn(ctx context.Context, f string, v ...interface{}) {
 	if logger.LogLevel(l) < logger.Warn {
 		return
 	}
-	log.Get(ctx).WithContext(log.M{
-		"caller": fileWithLineNum(),
-	}).
-		Warnf(f, v...)
+	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum())
+	slogctx.Warn(ctx, f, v...)
 }
 
-func (l ctxLogger) Error(ctx context.Context, f string, v ...interface{}) {
+func (l slogLogger) Error(ctx context.Context, f string, v ...interface{}) {
 	if logger.LogLevel(l) < logger.Error {
 		return
 	}
-	log.Get(ctx).WithContext(log.M{
-		"caller": fileWithLineNum(),
-	}).
-		Errorf(f, v...)
+	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum())
+	slogctx.Error(ctx, f, nil, v...)
 }
 
-func (l ctxLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+func (l slogLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
 	if logger.LogLevel(l) < logger.Info && err == nil {
 		return
 	}
 	dt := time.Since(begin)
 	sql, rows := fc()
-	logger := log.Get(ctx).WithContext(log.M{
-		"caller":   fileWithLineNum(),
-		"duration": dt.Milliseconds(),
-		"rows":     rows,
-	})
+	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum(), "duration", dt.Milliseconds(), "rows", rows)
 	if err != nil {
-		logger = logger.WithContext(log.M{
-			"error": err.Error(),
-		})
+		slogctx.Error(ctx, "%s", err, sql)
+		return
 	}
-	logger.Debugf("%s", sql)
+	slogctx.Debug(ctx, "%s", sql)
 }

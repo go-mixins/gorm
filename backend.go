@@ -16,7 +16,6 @@ type Backend struct {
 	Driver          gorm.Dialector
 	Config          *gorm.Config
 	Debug           bool
-	UseLogMixin     bool
 	Migrate         bool
 	MaxIdleConns    int
 	MaxOpenConns    int
@@ -28,10 +27,7 @@ func (b *Backend) config() *gorm.Config {
 	if b.Config != nil {
 		return b.Config
 	}
-	config := &gorm.Config{}
-	if b.UseLogMixin {
-		config.Logger = ctxLogger(logger.Warn)
-	}
+	config := &gorm.Config{Logger: slogLogger(logger.Info)}
 	return config
 }
 
@@ -40,20 +36,6 @@ func (b *Backend) WithContext(ctx context.Context) *Backend {
 	res := new(Backend)
 	*res = *b
 	res.DB = b.DB.WithContext(ctx)
-	return res
-}
-
-// WithLogger injects log printer func into Backend
-func (b *Backend) WithLogger(printer Printer) *Backend {
-	res := new(Backend)
-	*res = *b
-	var cfg logger.Config
-	if b.Debug {
-		cfg.LogLevel = logger.Info
-	}
-	res.DB = b.DB.Session(&gorm.Session{
-		Logger: logger.New(printer, cfg),
-	})
 	return res
 }
 
