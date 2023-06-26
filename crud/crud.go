@@ -10,9 +10,19 @@ import (
 	g "gorm.io/gorm"
 )
 
-type Basic[M any] gorm.Backend
+type Basic[A any] gorm.Backend
 
-func (b Basic[A]) Create(src *A, opts ...func(*g.DB) *g.DB) error {
+func (b *Basic[A]) Begin() *Basic[A] {
+	backend := (*gorm.Backend)(b).Begin()
+	return (*Basic[A])(backend)
+}
+
+func (b *Basic[A]) End(rErr error) error {
+	backend := (*gorm.Backend)(b)
+	return backend.End(rErr)
+}
+
+func (b *Basic[A]) Create(src *A, opts ...func(*g.DB) *g.DB) error {
 	q := b.DB
 	for _, opt := range opts {
 		q = opt(q)
@@ -25,7 +35,7 @@ func (b Basic[A]) Create(src *A, opts ...func(*g.DB) *g.DB) error {
 	return nil
 }
 
-func (b Basic[A]) Update(upd A, opts ...func(*g.DB) *g.DB) error {
+func (b *Basic[A]) Update(upd A, opts ...func(*g.DB) *g.DB) error {
 	q := b.DB.Model(upd)
 	for _, opt := range opts {
 		q = opt(q)
@@ -42,18 +52,18 @@ func (b Basic[A]) Update(upd A, opts ...func(*g.DB) *g.DB) error {
 	return nil
 }
 
-func (b Basic[A]) Get(conds ...interface{}) (*A, error) {
+func (b *Basic[A]) Get(conds ...interface{}) (A, error) {
 	var dest A
 	q := b.DB.Model(dest)
 	if err := q.First(&dest, conds...).Error; errors.Is(err, g.ErrRecordNotFound) {
-		return nil, ErrNotFound
+		return dest, ErrNotFound
 	} else if err != nil {
-		return nil, fmt.Errorf("reading %T: %+v", dest, err)
+		return dest, fmt.Errorf("reading %T: %+v", dest, err)
 	}
-	return &dest, nil
+	return dest, nil
 }
 
-func (b Basic[A]) Delete(conds ...interface{}) error {
+func (b *Basic[A]) Delete(conds ...interface{}) error {
 	var dest A
 	if err := b.DB.Delete(&dest, conds...).Error; errors.Is(err, g.ErrRecordNotFound) {
 		return ErrNotFound
@@ -65,7 +75,7 @@ func (b Basic[A]) Delete(conds ...interface{}) error {
 
 var splitRe = regexp.MustCompile(`\s*[;,]\s*`)
 
-func (b Basic[A]) Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]A, *gorm.Pagination, error) {
+func (b *Basic[A]) Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]A, *gorm.Pagination, error) {
 	var (
 		res []A
 		elt A
