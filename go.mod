@@ -8,20 +8,18 @@ require (
 	github.com/go-mixins/gorm/v3 v3.0.3
 	github.com/go-mixins/log v0.2.6
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jellevandenhooff/slogctx v0.0.0-20230203222211-14de9af6a8cf
 	github.com/oleiade/reflections v1.0.1
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	gorm.io/driver/sqlite v1.5.2
 	gorm.io/gorm v1.25.2-0.20230530020048-26663ab9bf55
 )
 
 require (
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	golang.org/x/exp v0.0.0-20230129154200-a960b3787bd2 // indirect
 	golang.org/x/sys v0.1.0 // indirect
 )

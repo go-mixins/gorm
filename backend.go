@@ -6,6 +6,7 @@ import (
 	"time"
 
 	gormigrate "github.com/go-gormigrate/gormigrate/v2"
+	"golang.org/x/exp/slog"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -21,14 +22,23 @@ type Backend struct {
 	MaxOpenConns    int
 	ConnMaxLifetime time.Duration
 	InitSchema      func(*gorm.DB) error
+	Logger          *slog.Logger
+
+	loglevel logger.LogLevel
 }
 
 func (b *Backend) config() *gorm.Config {
 	if b.Config != nil {
 		return b.Config
 	}
-	config := &gorm.Config{Logger: slogLogger(logger.Info)}
+	config := &gorm.Config{Logger: b}
 	return config
+}
+
+func (b *Backend) WithDebug() *Backend {
+	res := *b
+	res.DB = res.DB.Debug()
+	return &res
 }
 
 // WithContext creates Backend clone with new context and logger

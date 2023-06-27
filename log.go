@@ -2,13 +2,14 @@ package gorm
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/jellevandenhooff/slogctx"
+	"golang.org/x/exp/slog"
 	"gorm.io/gorm/logger"
 )
 
@@ -24,55 +25,64 @@ func fileWithLineNum() string {
 	return ""
 }
 
-type Printer func(string, ...interface{})
+func (b *Backend) LogMode(l logger.LogLevel) logger.Interface {
+	return &Backend{
+		Logger:   b.Logger,
+		loglevel: l,
+	}
+}
 
-func (p Printer) Printf(format string, vals ...interface{}) {
-	if p == nil {
+func (b *Backend) logger() *slog.Logger {
+	if b.Logger != nil {
+		return b.Logger
+	}
+	return slog.Default()
+}
+
+func (b *Backend) level() logger.LogLevel {
+	if b.loglevel != 0 {
+		return b.loglevel
+	}
+	return logger.Warn
+}
+
+func (b *Backend) Info(ctx context.Context, f string, v ...interface{}) {
+	if b.level() < logger.Info {
 		return
 	}
-	p(format, vals...)
+	b.logger().InfoCtx(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
 }
 
-type slogLogger logger.LogLevel
-
-func (slogLogger) LogMode(l logger.LogLevel) logger.Interface {
-	return slogLogger(l)
-}
-
-func (l slogLogger) Info(ctx context.Context, f string, v ...interface{}) {
-	if logger.LogLevel(l) < logger.Info {
+func (b *Backend) Warn(ctx context.Context, f string, v ...interface{}) {
+	if b.level() < logger.Warn {
 		return
 	}
-	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum())
-	slogctx.Info(ctx, f, v...)
+	b.logger().WarnCtx(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
 }
 
-func (l slogLogger) Warn(ctx context.Context, f string, v ...interface{}) {
-	if logger.LogLevel(l) < logger.Warn {
+func (b *Backend) Error(ctx context.Context, f string, v ...interface{}) {
+	if b.level() < logger.Error {
 		return
 	}
-	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum())
-	slogctx.Warn(ctx, f, v...)
+	b.logger().ErrorCtx(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
 }
 
-func (l slogLogger) Error(ctx context.Context, f string, v ...interface{}) {
-	if logger.LogLevel(l) < logger.Error {
-		return
-	}
-	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum())
-	slogctx.Error(ctx, f, nil, v...)
-}
-
-func (l slogLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
-	if logger.LogLevel(l) < logger.Info && err == nil {
+func (b *Backend) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+	if b.level() < logger.Info && err == nil {
 		return
 	}
 	dt := time.Since(begin)
 	sql, rows := fc()
-	ctx = slogctx.WithAttrs(ctx, "caller", fileWithLineNum(), "duration", dt.Milliseconds(), "rows", rows)
+	attrs := []any{
+		"caller",
+		fileWithLineNum(),
+		"duration", dt.Milliseconds(),
+		"rows", rows,
+	}
 	if err != nil {
-		slogctx.Error(ctx, "%s", err, sql)
+		attrs = append(attrs, "error", err)
+		b.logger().ErrorCtx(ctx, sql, attrs...)
 		return
 	}
-	slogctx.Debug(ctx, "%s", sql)
+	b.logger().DebugCtx(ctx, sql, attrs...)
 }
