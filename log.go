@@ -3,13 +3,13 @@ package gorm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"golang.org/x/exp/slog"
 	"gorm.io/gorm/logger"
 )
 
@@ -50,21 +50,21 @@ func (b *Backend) Info(ctx context.Context, f string, v ...interface{}) {
 	if b.level() < logger.Info {
 		return
 	}
-	b.logger().InfoCtx(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
+	b.logger().InfoContext(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
 }
 
 func (b *Backend) Warn(ctx context.Context, f string, v ...interface{}) {
 	if b.level() < logger.Warn {
 		return
 	}
-	b.logger().WarnCtx(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
+	b.logger().WarnContext(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
 }
 
 func (b *Backend) Error(ctx context.Context, f string, v ...interface{}) {
 	if b.level() < logger.Error {
 		return
 	}
-	b.logger().ErrorCtx(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
+	b.logger().ErrorContext(ctx, fmt.Sprintf(f, v...), "caller", fileWithLineNum())
 }
 
 func (b *Backend) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
@@ -81,8 +81,8 @@ func (b *Backend) Trace(ctx context.Context, begin time.Time, fc func() (string,
 	}
 	if err != nil {
 		attrs = append(attrs, "error", err)
-		b.logger().ErrorCtx(ctx, sql, attrs...)
+		b.logger().ErrorContext(ctx, sql, attrs...)
 		return
 	}
-	b.logger().DebugCtx(ctx, sql, attrs...)
+	b.logger().DebugContext(ctx, sql, attrs...)
 }

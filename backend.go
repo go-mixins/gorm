@@ -3,10 +3,10 @@ package gorm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	gormigrate "github.com/go-gormigrate/gormigrate/v2"
-	"golang.org/x/exp/slog"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
