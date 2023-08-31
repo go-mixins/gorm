@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -15,8 +14,8 @@ import (
 	"gorm.io/driver/sqlite"
 	g "gorm.io/gorm"
 
-	"github.com/go-mixins/gorm/v3"
-	"github.com/go-mixins/gorm/v3/crud"
+	"github.com/go-mixins/gorm/v4"
+	"github.com/go-mixins/gorm/v4/crud"
 )
 
 type testItem struct {
@@ -35,9 +34,8 @@ var logger = logrus.New()
 func TestMain(m *testing.M) {
 	flag.Parse()
 	b := &gorm.Backend{
-		Driver:      sqlite.Open(":memory:"),
-		Migrate:     true,
-		UseLogMixin: true,
+		Driver:  sqlite.Open(":memory:"),
+		Migrate: true,
 	}
 	b.Debug = testing.Verbose()
 	if b.Debug {
@@ -59,7 +57,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCrud_Create_Update(t *testing.T) {
-	data, err := ioutil.ReadFile("../testdata/fixtures.json")
+	data, err := os.ReadFile("../testdata/fixtures.json")
 	if err != nil {
 		panic(err)
 	}

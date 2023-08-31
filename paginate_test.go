@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -17,7 +16,7 @@ import (
 	"gorm.io/driver/sqlite"
 	g "gorm.io/gorm"
 
-	"github.com/go-mixins/gorm/v3"
+	"github.com/go-mixins/gorm/v4"
 )
 
 type testItem struct {
@@ -33,9 +32,8 @@ var logger = logrus.New()
 func TestMain(m *testing.M) {
 	flag.Parse()
 	b := &gorm.Backend{
-		Driver:      sqlite.Open(":memory:"),
-		Migrate:     true,
-		UseLogMixin: true,
+		Driver:  sqlite.Open(":memory:"),
+		Migrate: true,
 	}
 	b.Debug = testing.Verbose()
 	if b.Debug {
@@ -52,7 +50,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	backend = b.WithContext(log.With(context.Background(), logger))
-	data, err := ioutil.ReadFile("testdata/fixtures.json")
+	data, err := os.ReadFile("testdata/fixtures.json")
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +67,7 @@ func TestPaginateUID(t *testing.T) {
 	buf := new(bytes.Buffer)
 	enc := json.NewEncoder(buf)
 	var reqs []*gorm.Pagination
-	data, err := ioutil.ReadFile("testdata/uid.json")
+	data, err := os.ReadFile("testdata/uid.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +92,7 @@ func TestPaginateTime(t *testing.T) {
 	buf := new(bytes.Buffer)
 	enc := json.NewEncoder(buf)
 	var reqs []*gorm.Pagination
-	data, err := ioutil.ReadFile("testdata/time.json")
+	data, err := os.ReadFile("testdata/time.json")
 	if err != nil {
 		t.Fatal(err)
 	}

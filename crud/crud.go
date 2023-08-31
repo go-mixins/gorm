@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/go-mixins/gorm/v3"
+	"github.com/go-mixins/gorm/v4"
 	"github.com/oleiade/reflections"
 	g "gorm.io/gorm"
 )
