@@ -52,15 +52,15 @@ func (b *Basic[A]) Update(upd A, opts ...func(*g.DB) *g.DB) error {
 	return nil
 }
 
-func (b *Basic[A]) Get(conds ...interface{}) (A, error) {
+func (b *Basic[A]) Get(conds ...interface{}) (*A, error) {
 	var dest A
 	q := b.DB.Model(dest)
 	if err := q.First(&dest, conds...).Error; errors.Is(err, g.ErrRecordNotFound) {
-		return dest, ErrNotFound
+		return nil, ErrNotFound
 	} else if err != nil {
-		return dest, fmt.Errorf("reading %T: %+v", dest, err)
+		return nil, fmt.Errorf("reading %T: %+v", dest, err)
 	}
-	return dest, nil
+	return &dest, nil
 }
 
 func (b *Basic[A]) Delete(conds ...interface{}) error {
@@ -75,12 +75,12 @@ func (b *Basic[A]) Delete(conds ...interface{}) error {
 
 var splitRe = regexp.MustCompile(`\s*[;,]\s*`)
 
-func (b *Basic[A]) Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]A, *gorm.Pagination, error) {
+func (b *Basic[A]) Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]*A, *gorm.Pagination, error) {
 	var (
-		res []A
+		res []*A
 		elt A
 	)
-	p := &gorm.Paginator[A]{Debug: b.Debug, IsTime: true}
+	p := &gorm.Paginator[*A]{Debug: b.Debug, IsTime: true}
 	fields, err := reflections.FieldsDeep(&elt)
 	if err != nil {
 		return nil, nil, err
