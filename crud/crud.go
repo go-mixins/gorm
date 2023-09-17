@@ -27,7 +27,7 @@ func (b *Basic[A]) Create(src *A, opts ...func(*g.DB) *g.DB) error {
 	for _, opt := range opts {
 		q = opt(q)
 	}
-	if err := q.Create(src).Error; gorm.UniqueViolation(err) {
+	if err := q.Create(src).Error; errors.Is(err, g.ErrDuplicatedKey) {
 		return ErrFound
 	} else if err != nil {
 		return fmt.Errorf("creating %T: %+v", src, err)
@@ -40,9 +40,9 @@ func (b *Basic[A]) Update(upd A, opts ...func(*g.DB) *g.DB) error {
 	for _, opt := range opts {
 		q = opt(q)
 	}
-	if err := q.Updates(upd).Error; gorm.UniqueViolation(err) {
+	if err := q.Updates(upd).Error; errors.Is(err, g.ErrDuplicatedKey) {
 		return ErrFound
-	} else if gorm.NotFound(err) {
+	} else if errors.Is(err, g.ErrRecordNotFound) {
 		return ErrNotFound
 	} else if err != nil {
 		return fmt.Errorf("updating %T: %+v", upd, err)
