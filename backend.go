@@ -31,7 +31,7 @@ func (b *Backend) config() *gorm.Config {
 	if b.Config != nil {
 		return b.Config
 	}
-	config := &gorm.Config{Logger: b}
+	config := &gorm.Config{Logger: b, TranslateError: true}
 	return config
 }
 
