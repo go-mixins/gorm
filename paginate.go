@@ -3,6 +3,7 @@ package gorm
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -26,6 +27,13 @@ type Pagination struct {
 	NextPageToken string `json:"next_page_token"`
 	ThisPageToken string `json:"this_page_token"`
 	PrevPageToken string `json:"prev_page_token"`
+	table         string
+}
+
+func (p Pagination) WithTable(tableName string) Pagination {
+	res := p
+	res.table = tableName
+	return res
 }
 
 // GetPageSize returns pagination size
@@ -37,9 +45,9 @@ func (p *Pagination) GetPageSize() int {
 }
 
 type scope struct {
-	rev, neg, hasOffset bool
-	dbField, dbTie      string
-	cursor              map[string]interface{}
+	rev, neg, hasOffset     bool
+	dbField, dbTie, dbTable string
+	cursor                  map[string]interface{}
 }
 
 func (p *Paginator[A]) cursor(elt A) string {
@@ -112,13 +120,13 @@ func (pgn *Pagination) isReverse() bool {
 func (p *scope) order(db *gorm.DB) *gorm.DB {
 	if p.rev {
 		db = db.Order(p.field(db) + " DESC")
-		if p.tie(db) != "" {
+		if p.dbTie != "" {
 			db = db.Order(p.tie(db) + " DESC")
 		}
 		return db
 	}
 	db = db.Order(p.field(db) + " ASC")
-	if p.tie(db) != "" {
+	if p.dbTie != "" {
 		db = db.Order(p.tie(db) + " ASC")
 	}
 	return db
@@ -127,13 +135,13 @@ func (p *scope) order(db *gorm.DB) *gorm.DB {
 func (p *scope) reverse(db *gorm.DB) *gorm.DB {
 	if p.rev {
 		db = db.Order(p.field(db) + " ASC")
-		if p.tie(db) != "" {
+		if p.dbTie != "" {
 			db = db.Order(p.tie(db) + " ASC")
 		}
 		return db
 	}
 	db = db.Order(p.field(db) + " DESC")
-	if p.tie(db) != "" {
+	if p.dbTie != "" {
 		db = db.Order(p.tie(db) + " DESC")
 	}
 	return db
@@ -172,11 +180,19 @@ func (p *scope) backward(db *gorm.DB) *gorm.DB {
 }
 
 func (s *scope) field(db *gorm.DB) string {
-	return db.NamingStrategy.ColumnName("", s.dbField)
+	res := db.NamingStrategy.ColumnName("", s.dbField)
+	if s.dbTable != "" {
+		res = fmt.Sprintf(`%s."%s"`, s.dbTable, res)
+	}
+	return res
 }
 
 func (s *scope) tie(db *gorm.DB) string {
-	return db.NamingStrategy.ColumnName("", s.dbTie)
+	res := db.NamingStrategy.ColumnName("", s.dbTie)
+	if s.dbTable != "" {
+		res = fmt.Sprintf(`%s."%s"`, s.dbTable, res)
+	}
+	return res
 }
 
 func (p *Paginator[A]) scope(pgn *Pagination) *scope {
@@ -184,6 +200,7 @@ func (p *Paginator[A]) scope(pgn *Pagination) *scope {
 		rev:     p.Reverse,
 		dbField: p.FieldName,
 		dbTie:   p.TieBreakField,
+		dbTable: pgn.table,
 	}
 	if pgn == nil {
 		return res
