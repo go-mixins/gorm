@@ -80,7 +80,7 @@ func (b *Basic[A]) Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]*A, *
 		res []*A
 		elt A
 	)
-	p := &gorm.Paginator[*A]{Debug: b.Debug, IsTime: true}
+	p := &gorm.Paginator[*A]{}
 	fields, err := reflections.FieldsDeep(&elt)
 	if err != nil {
 		return nil, nil, err
