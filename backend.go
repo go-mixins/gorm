@@ -8,6 +8,7 @@ import (
 	gormigrate "github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"gorm.io/plugin/opentelemetry/tracing"
 )
 
 // Backend implements generic database backend
@@ -74,6 +75,9 @@ func (b *Backend) Connect(migrations ...*gormigrate.Migration) error {
 	}
 	if b.Debug {
 		db = db.Debug()
+	}
+	if err := db.Use(tracing.NewPlugin(tracing.WithoutMetrics())); err != nil {
+		return fmt.Errorf("enabling tracing: %w", err)
 	}
 	sqlDB, err := db.DB()
 	if err != nil {
