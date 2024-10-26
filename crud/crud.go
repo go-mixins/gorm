@@ -3,16 +3,35 @@ package crud
 import (
 	"errors"
 	"fmt"
-	"regexp"
 
 	"github.com/go-mixins/gorm/v4"
-	"github.com/oleiade/reflections"
 	g "gorm.io/gorm"
 )
 
 type Basic[A any] gorm.Backend
 
-func (b *Basic[A]) Begin() *Basic[A] {
+type CRUD[A any] interface {
+	Create(src *A, opts ...func(*g.DB) *g.DB) error
+	Update(upd A, opts ...func(*g.DB) *g.DB) error
+	Get(conds ...interface{}) (*A, error)
+	Delete(conds ...interface{}) error
+	Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]*A, *gorm.Pagination, error)
+}
+
+type Tx[A any] interface {
+	CRUD[A]
+	End(rErr error) error
+}
+
+func (b *Basic[A]) Transact(f func(tx CRUD[A]) error) (rErr error) {
+	tx := b.Begin()
+	defer func() {
+		rErr = tx.End(rErr)
+	}()
+	return f(tx)
+}
+
+func (b *Basic[A]) Begin() Tx[A] {
 	backend := (*gorm.Backend)(b).Begin()
 	return (*Basic[A])(backend)
 }
@@ -73,44 +92,11 @@ func (b *Basic[A]) Delete(conds ...interface{}) error {
 	return nil
 }
 
-var splitRe = regexp.MustCompile(`\s*[;,]\s*`)
-
 func (b *Basic[A]) Find(pgn gorm.Pagination, opts ...func(*g.DB) *g.DB) ([]*A, *gorm.Pagination, error) {
-	var (
-		res []*A
-		elt A
-	)
-	p := &gorm.Paginator[*A]{}
-	fields, err := reflections.FieldsDeep(&elt)
+	var res []*A
+	p, err := gorm.NewPaginator[A]()
 	if err != nil {
 		return nil, nil, err
-	}
-	for _, f := range fields {
-		t, err := reflections.GetFieldTag(&elt, f, `paginate`)
-		if err != nil {
-			return nil, nil, err
-		}
-		if t == "" {
-			continue
-		}
-		options := splitRe.Split(t, -1)
-		switch options[0] {
-		case "key":
-			p.FieldName = f
-			for _, o := range options {
-				switch o {
-				case "reverse":
-					p.Reverse = true
-				case "isTime":
-					p.IsTime = true
-				}
-			}
-		case "tieBreak":
-			p.TieBreakField = f
-		}
-	}
-	if p.FieldName == "" {
-		return nil, nil, fmt.Errorf("key field for %T must be tagged", elt)
 	}
 	q := b.DB.Scopes(p.Scope(&pgn))
 	for _, o := range opts {

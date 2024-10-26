@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -48,6 +49,45 @@ type scope struct {
 	rev, neg, hasOffset     bool
 	dbField, dbTie, dbTable string
 	cursor                  map[string]interface{}
+}
+
+var splitRe = regexp.MustCompile(`\s*[;,]\s*`)
+
+func NewPaginator[A any]() (*Paginator[*A], error) {
+	var elt A
+	p := &Paginator[*A]{}
+	fields, err := reflections.FieldsDeep(&elt)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range fields {
+		t, err := reflections.GetFieldTag(&elt, f, `paginate`)
+		if err != nil {
+			return nil, err
+		}
+		if t == "" {
+			continue
+		}
+		options := splitRe.Split(t, -1)
+		switch options[0] {
+		case "key":
+			p.FieldName = f
+			for _, o := range options {
+				switch o {
+				case "reverse":
+					p.Reverse = true
+				case "isTime":
+					p.IsTime = true
+				}
+			}
+		case "tieBreak":
+			p.TieBreakField = f
+		}
+	}
+	if p.FieldName == "" {
+		return nil, fmt.Errorf("key field for %T must be tagged", elt)
+	}
+	return p, nil
 }
 
 func (p *Paginator[A]) cursor(elt A) string {
